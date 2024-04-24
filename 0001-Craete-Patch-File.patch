@@ -1,0 +1,109 @@
+From 69aaaee9905f3d597274dde844d9460faa48a1f5 Mon Sep 17 00:00:00 2001
+From: Siddharth Garg <rohansingh.dpr1999@gmail.com>
+Date: Wed, 10 Apr 2024 03:08:09 +0530
+Subject: [PATCH] Craete Patch File
+
+---
+ src/DataManipulator.ts | 42 ++++++++++++++++++++++++++++--------------
+ src/Graph.tsx          | 12 +++++++++---
+ 2 files changed, 37 insertions(+), 17 deletions(-)
+
+diff --git a/src/DataManipulator.ts b/src/DataManipulator.ts
+index 7f62295..8cfeb07 100644
+--- a/src/DataManipulator.ts
++++ b/src/DataManipulator.ts
+@@ -1,20 +1,34 @@
+ import { ServerRespond } from './DataStreamer';
+-
++ 
+ export interface Row {
+-  stock: string,
+-  top_ask_price: number,
++  [key: string]: string|any;
++  price_abc: number,
++  price_def: number,
++  ratio: number,
+   timestamp: Date,
++  upper_bound: number,
++  lower_bound: number,
++  trigger_alert: number | undefined,
+ }
+-
+-
++ 
++ 
+ export class DataManipulator {
+-  static generateRow(serverResponds: ServerRespond[]) {
+-    return serverResponds.map((el: any) => {
+-      return {
+-        stock: el.stock,
+-        top_ask_price: el.top_ask && el.top_ask.price || 0,
+-        timestamp: el.timestamp,
+-      };
+-    })
++  static generateRow(serverRespond: ServerRespond[]): Row {
++    const priceABC= (serverRespond[0].top_ask.price+serverRespond[0].top_bid.price)/2;
++    const priceDEF= (serverRespond[1].top_ask.price+serverRespond[1].top_bid.price)/2;
++    const ratio = priceABC/priceDEF;
++    const upperBound=1+0.05;
++    const lowerBound=1-0.05;
++    return {
++      price_abc: priceABC,
++      price_def: priceDEF,
++      ratio,
++      timestamp: serverRespond[0].timestamp > serverRespond[1].timestamp ?
++        serverRespond[0].timestamp : serverRespond[1].timestamp,
++      upper_bound: upperBound,
++      lower_bound: lowerBound,
++      trigger_alert: (ratio > upperBound || ratio < lowerBound) ? ratio : undefined,
++ 
++    };
+   }
+-}
++}
+\ No newline at end of file
+diff --git a/src/Graph.tsx b/src/Graph.tsx
+index 277797d..ab8d0d1 100644
+--- a/src/Graph.tsx
++++ b/src/Graph.tsx
+@@ -1,5 +1,5 @@
+ import React, { Component } from 'react';
+-import { Table } from '@finos/perspective';
++import { Table, TableData } from '@finos/perspective';
+ import { ServerRespond } from './DataStreamer';
+ import { DataManipulator } from './DataManipulator';
+ import './Graph.css';
+@@ -27,6 +27,9 @@ class Graph extends Component<IProps, {}> {
+       top_ask_price: 'float',
+       top_bid_price: 'float',
+       timestamp: 'date',
++      upper_bound:'float',
++      lower_bound: 'float',
++      trigger_alert: 'float',
+     };
+ 
+     if (window.perspective && window.perspective.worker()) {
+@@ -44,15 +47,18 @@ class Graph extends Component<IProps, {}> {
+         top_ask_price: 'avg',
+         top_bid_price: 'avg',
+         timestamp: 'distinct count',
++        upper_bound: 'avg',
++        lower_bound: 'avg',
++        trigger_alert: 'avg',
+       }));
+     }
+   }
+ 
+   componentDidUpdate() {
+     if (this.table) {
+-      this.table.update(
++      this.table.update([
+         DataManipulator.generateRow(this.props.data),
+-      );
++      ]as unknown as TableData);
+     }
+   }
+ }
+-- 
+2.41.0.windows.3
+
